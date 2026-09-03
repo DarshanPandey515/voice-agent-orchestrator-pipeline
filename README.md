@@ -6,21 +6,21 @@ A real-time voice AI assistant pipeline: listen with a microphone, transcribe sp
 
 ```mermaid
 flowchart LR
-    A["Microphone (PyAudio)"] -->|raw audio frames| B["asr.py<br/>AssemblyAI Real-Time STT"]
-    B -->|end-of-turn transcript| C["llm.py<br/>pydantic-ai agent (Groq)"]
-    C -->|spoken-style reply| D["tts.py<br/>ElevenLabs text-to-speech"]
-    D -->|audio playback| A
+    Mic["You speak"] --> STT["Speech-to-text"]
+    STT --> Agent["AI agent"]
+    Agent --> TTS["Text-to-speech"]
+    TTS --> Speaker["You hear"]
 ```
 
 `main.py` is the orchestrator: it wires up the event handlers, connects the transcriber, and runs the microphone streaming loop. Each module is self-contained:
 
-| File       | Responsibility                                    |
-|------------|---------------------------------------------------|
-| `main.py`  | Orchestrator — event handlers, mic loop, `main()` |
-| `asr.py`   | Real-time speech-to-text client + connect logic   |
-| `llm.py`   | LLM agent (system prompt + tool registration)     |
-| `tts.py`   | Text-to-speech playback                           |
-| `tools.py` | Executable tools available to the agent           |
+| File       | Role                                      |
+|------------|-------------------------------------------|
+| `main.py`  | Orchestrator — wires everything together  |
+| `asr.py`   | Listens and converts speech to text       |
+| `llm.py`   | Thinks and replies                        |
+| `tts.py`   | Speaks the reply aloud                    |
+| `tools.py` | Lets the agent run safe shell commands    |
 
 ## Requirements
 
