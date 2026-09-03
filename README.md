@@ -4,17 +4,12 @@ A real-time voice AI assistant pipeline: listen with a microphone, transcribe sp
 
 ## Pipeline
 
-```
-Microphone (PyAudio)
-      │  raw audio frames
-      ▼
-asr.py  — AssemblyAI Real-Time streaming STT
-      │  end-of-turn transcript
-      ▼
-llm.py  — pydantic-ai agent (Groq) with a bash tool
-      │  spoken-style reply
-      ▼
-tts.py  — ElevenLabs text-to-speech, played back
+```mermaid
+flowchart LR
+    A["Microphone (PyAudio)"] -->|raw audio frames| B["asr.py<br/>AssemblyAI Real-Time STT"]
+    B -->|end-of-turn transcript| C["llm.py<br/>pydantic-ai agent (Groq)"]
+    C -->|spoken-style reply| D["tts.py<br/>ElevenLabs text-to-speech"]
+    D -->|audio playback| A
 ```
 
 `main.py` is the orchestrator: it wires up the event handlers, connects the transcriber, and runs the microphone streaming loop. Each module is self-contained:
