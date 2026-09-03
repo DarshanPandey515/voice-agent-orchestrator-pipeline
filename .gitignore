@@ -1,0 +1,23 @@
+# Environment
+.env
+.env.local
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+build/
+dist/
+*.egg
+
+# Runtime artifacts
+output.mp3
+transcript.txt
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
