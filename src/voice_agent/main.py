@@ -1,90 +1,83 @@
+import asyncio
 import pyaudio
-from assemblyai.streaming.v3 import (
-    RealTimeTranscriber,
-    RealTimeEvents,
-    BeginEvent,
-    TurnEvent,
-    RealTimeError,
-)
-
-from voice_agent.asr import transcriber, connect, SAMPLE_RATE, FRAMES_PER_BUFFER
-from voice_agent.llm import agent
-from voice_agent.tts import audio_play
+from voice_agent.asr import StreamingASR
+from voice_agent.llm import LLMAgent
+from voice_agent.tts import StreamingTTS
+from voice_agent.config import asr_config
+import logging
 
 
-def on_open(client: RealTimeTranscriber, event: BeginEvent):
-    print(f"\n🚀 Session ID: {event.id} started successfully!")
+logger = logging.getLogger(__name__)
 
 
-def on_data(client: RealTimeTranscriber, event: TurnEvent):
-    if not event.transcript:
-        return
-
-    if event.end_of_turn:
-        print("=" * 20)
-        print(f"\nUser: {event.transcript}")
+class VoiceAgent:
+    def __init__(self):
+        self.asr = StreamingASR()
+        self.llm = LLMAgent()
+        self.tts = StreamingTTS()
+        self.is_running = False
+    
+    async def process_turns(self):
+        while self.is_running:
+            try:
+                user_text = await self.asr.get_next_turn()
+                
+                if self.tts.is_playing:
+                    self.tts.interrupt()
+                
+                response = await self.llm.generate_response(user_text)
+                logger.info("Assistant: %s", response)
+                
+                await self.tts.speak(response)
+                
+            except asyncio.CancelledError:
+                break
+            
+            except Exception as e:
+                logger.debug("Processing error: %s", e)
+    
+    async def run(self):
+        self.is_running = True
+        self.asr.connect()
         
+        p = pyaudio.PyAudio()
+        audio_stream = p.open(
+            format=pyaudio.paInt16,
+            channels=1,
+            rate=asr_config.sample_rate,
+            input=True,
+            frames_per_buffer=asr_config.frames_per_buffer,
+        )
         
-        user_prompt = event.transcript
+        logger.info("Listening... Speak into your mic. Press Ctrl+C to stop.")
+                
+        try:
+            processor_task = asyncio.create_task(self.process_turns())
+            
+            while self.is_running:
+                try:
+                    data = audio_stream.read(
+                        asr_config.frames_per_buffer,
+                        exception_on_overflow=False
+                    )
+                    self.asr.stream_audio(data)
+                    await asyncio.sleep(0.001)
+                    
+                except KeyboardInterrupt:
+                    break
+                
+        finally:
+            self.is_running = False
+            audio_stream.stop_stream()
+            audio_stream.close()
+            p.terminate()
+            self.asr.disconnect()
+            processor_task.cancel()
+            await processor_task
 
-        response = agent.run_sync(user_prompt)
-
-        print("=" * 20)
-        print(f"ai response: {response.output}")
-        print("=" * 20)
-
-        audio_play(response.output)
-
-        with open("transcript.txt", "a", encoding="utf-8") as file:
-            file.write(f"User: {event.transcript}\n")
-            file.write(f"AI: {response.output}\n")
-            file.write("\n")
-
-    else:
-        print(f"Partial: {event.transcript}", end="\r")
-
-
-def on_error(client: RealTimeTranscriber, error: RealTimeError):
-    print(f"\nAn error occurred: {error}")
-
-
-def on_close():
-    print("\nSession closed.")
-
-
-def main() -> None:
-    transcriber.on(RealTimeEvents.Begin, on_open)
-    transcriber.on(RealTimeEvents.Turn, on_data)
-    transcriber.on(RealTimeEvents.Error, on_error)
-    transcriber.on(RealTimeEvents.Termination, on_close)
-
-    connect()
-
-    p = pyaudio.PyAudio()
-    audio_stream = p.open(
-        format=pyaudio.paInt16,
-        channels=1,
-        rate=SAMPLE_RATE,
-        input=True,
-        frames_per_buffer=FRAMES_PER_BUFFER,
-    )
-
-    print("\n🎙️ Listening... Speak into your mic. Press Ctrl+C to stop.\n")
-
-    try:
-        while True:
-            data = audio_stream.read(FRAMES_PER_BUFFER, exception_on_overflow=False)
-            transcriber.stream(data)
-
-    except KeyboardInterrupt:
-        print("\nStopping transcription...")
-
-    finally:
-        audio_stream.stop_stream()
-        audio_stream.close()
-        p.terminate()
-        transcriber.disconnect(terminate=True)
-
+def main():
+    agent = VoiceAgent()
+    asyncio.run(agent.run())
 
 if __name__ == "__main__":
     main()

@@ -17,6 +17,10 @@ dist/
 output.mp3
 transcript.txt
 
+# Personal working notes
+context.md
+learning.md
+
 # IDE / OS
 .idea/
 .vscode/
