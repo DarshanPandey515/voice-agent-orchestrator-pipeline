@@ -22,7 +22,8 @@ class LLMAgent:
     def __init__(self):
         self.agent = Agent(
             model=llm_config.model,
-            system_prompt=SYSTEM_PROMPT
+            system_prompt=SYSTEM_PROMPT,
+            
         )
         self.register_tools()
         self.conversation_history = []
@@ -35,16 +36,9 @@ class LLMAgent:
         
         
     async def generate_response(self, user_text: str) -> str:
-        self.conversation_history.append({
-            "role":"user",
-            "content":user_text
-        })
-        
         context = self.conversation_history[-10:]
-        response = await self.agent.run(context)
-        
-        self.conversation_history.append({
-            "role":"assistant",
-            "content": response.output
-        })
+        response = await self.agent.run(user_text, message_history=context)
+
+        self.conversation_history.extend(response.all_messages())
+        self.conversation_history = self.conversation_history[-10:]
         return response.output
