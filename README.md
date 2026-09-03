@@ -47,6 +47,6 @@ Speak into your mic. Press `Ctrl+C` to stop. A running transcript is appended to
 
 ## Notes
 
-- ASR model: `universal-3-5-pro` (configurable in `asr.py`)
-- LLM model: `groq:openai/gpt-oss-20b` (configurable in `llm.py`)
+- All model ids, voice id, and API keys are configurable in `src/voice_agent/config.py`
+- TTS uses raw PCM output (`pcm_22050`) so audio can be streamed to PyAudio directly
 - The agent's `bash` tool only allows a fixed set of read-only commands (`ls`, `cat`, `date`, etc.)

@@ -41,7 +41,7 @@ class StreamingTTS:
             stream = p.open(
                 format=pyaudio.paInt16,
                 channels=1,
-                rate=44100,
+                rate=tts_config.sample_rate,
                 output=True,
                 frames_per_buffer=1024,
             )
