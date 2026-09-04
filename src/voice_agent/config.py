@@ -13,8 +13,6 @@ class ASRConfig:
     api_key: str = os.getenv("ASSEMBLYAI_API_KEY")
     
     
-
-    
 @dataclass
 class LLMConfig:
     model: str = "groq:openai/gpt-oss-20b"

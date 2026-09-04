@@ -1,6 +1,7 @@
 import os
 import queue
 import asyncio
+import threading
 from dotenv import load_dotenv
 from assemblyai.streaming.v3 import (
     RealTimeTranscriber,
@@ -31,7 +32,8 @@ class StreamingASR:
         
         self.turn_queue = asyncio.Queue()
         self.is_running = False
-        
+        self._connected = threading.Event()
+
         self.transcriber.on(RealTimeEvents.Begin, self.on_open)
         self.transcriber.on(RealTimeEvents.Turn, self.on_turn)
         self.transcriber.on(RealTimeEvents.Error, self.on_error)
@@ -39,6 +41,7 @@ class StreamingASR:
     
     def on_open(self, client, event: BeginEvent):
         self.is_running = True
+        self._connected.set()
         logger.info("session: %s started", event.id)
         
 
@@ -52,12 +55,17 @@ class StreamingASR:
         logger.info("ASR Error: %s", error)
         
     
-    def connect(self):
+    def connect(self, timeout: float = 30.0):
         params = RealTimeParameters(
             sample_rate=asr_config.sample_rate,
             speech_model=asr_config.model
         )
+        self._connected.clear()
         self.transcriber.connect(params)
+        if not self._connected.wait(timeout=timeout):
+            raise TimeoutError(
+                f"ASR session did not open within {timeout}s"
+            )
         
         
     async def get_next_turn(self):
@@ -71,4 +79,5 @@ class StreamingASR:
             
     def disconnect(self):
         self.is_running = False
+        self._connected.clear()
         self.transcriber.disconnect(terminate=True)

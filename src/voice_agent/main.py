@@ -40,7 +40,10 @@ class VoiceAgent:
     
     async def run(self):
         self.is_running = True
+        logger.info("Connecting to ASR")
         self.asr.connect()
+        logger.info("Connected to ASR")
+        
         
         p = pyaudio.PyAudio()
         audio_stream = p.open(

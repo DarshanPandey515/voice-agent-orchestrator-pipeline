@@ -1,0 +1,82 @@
+import json
+import os
+import statistics
+import time
+from pathlib import Path
+
+import pytest
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+RESULTS_DIR = PROJECT_ROOT / "reports"
+RESULTS_FILE = RESULTS_DIR / "latency_results.json"
+
+ALLOWED_LATENCY_METRICS = {
+    "asr_connect",
+    "asr_turn",
+    "llm_ttft",
+    "llm_total",
+    "tts_first_chunk",
+    "tts_total",
+    "tts_audio_rate",
+    "e2e_asr_turn",
+    "e2e_pipeline",
+}
+
+
+class LatencyResults:
+    """Collects per-sample latency measurements for the report."""
+
+    def __init__(self):
+        self.records = []
+
+    def record(self, component: str, model: str, metric: str, ms: float):
+        assert metric in ALLOWED_LATENCY_METRICS, f"unknown metric: {metric}"
+        self.records.append(
+            {
+                "component": component,
+                "model": model,
+                "metric": metric,
+                "ms": round(ms, 3),
+                "ts": time.time(),
+            }
+        )
+
+    def get(self, component: str, metric: str):
+        return [
+            r["ms"]
+            for r in self.records
+            if r["component"] == component and r["metric"] == metric
+        ]
+
+    def to_dict(self):
+        return {"generated_at": time.time(), "records": self.records}
+
+
+@pytest.fixture(scope="session")
+def latency_results(request):
+    results = LatencyResults()
+    request.session._latency_results = results
+    return results
+
+
+@pytest.fixture(scope="session")
+def require_keys():
+    def _check(keys):
+        missing = [k for k in keys if not os.getenv(k)]
+        if missing:
+            pytest.skip(f"Missing API key(s): {', '.join(missing)}")
+        return True
+
+    return _check
+
+
+def _dump_results(results: LatencyResults):
+    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    RESULTS_FILE.write_text(json.dumps(results.to_dict(), indent=2))
+    print(f"\nLatency results written to {RESULTS_FILE}")
+
+
+def pytest_sessionfinish(session, exitstatus):
+    results = getattr(session, "_latency_results", None)
+    if results is not None:
+        _dump_results(results)
