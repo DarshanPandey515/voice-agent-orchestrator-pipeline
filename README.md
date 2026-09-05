@@ -22,7 +22,7 @@ flowchart LR
 | `asr.py`   | Streaming ASR over WebSocket, turn queue, connect timeout |
 | `llm.py`   | Agent with system prompt, tools, last-10-turn history |
 | `tts.py`   | Streaming TTS with interrupt (barge-in) support  |
-| `tools.py` | `BashTool` — read-only whitelisted shell commands |
+| `tools.py` | Tool implementations: bash allowlist, read file, project tree |
 | `config.py`| Model ids, voice id, sample rates, API keys      |
 
 Turn flow:
@@ -70,7 +70,19 @@ All model ids, the voice id, sample rates, and API keys live in `src/voice_agent
 | LLM | `groq:openai/gpt-oss-20b` |
 | TTS | `eleven_flash_v2_5`, PCM 22.05 kHz output |
 
-TTS uses raw PCM (`pcm_22050`) so audio streams straight to PyAudio without decoding. The agent's `bash` tool only allows a fixed set of read-only commands (`ls`, `cat`, `date`, …).
+TTS uses raw PCM (`pcm_22050`) so audio streams straight to PyAudio without decoding.
+
+## Tools
+
+The agent exposes three tools, all designed to be voice-friendly (output is truncated to ~1500 chars and summarized rather than recited):
+
+| Tool | Backing class | Description |
+|------|---------------|-------------|
+| `bash_tool` | `BashTool` | Runs read-only shell commands from a fixed allowlist (`ls`, `pwd`, `cat`, `head`, `tail`, `grep`, `find`, `git`, `wc`, `echo`, `date`, `whoami`, `df`, `du`). Executed asynchronously with a 10 s timeout; anything outside the allowlist is rejected. |
+| `readfile_tool` | `ReadFileTool` | Reads a text file's contents (truncated) from disk. |
+| `get_tree_tool` | `GetTreeTool` | Lists project files, capped at 200 entries, ignoring `.git`, `__pycache__`, `venv`, `node_modules`, etc. |
+
+`tools.py` also defines `WriteFileTool` and `EditFileTool` for writing/editing files, but they are not registered on the agent yet — the assistant stays read-only for now.
 
 ## Latency
 
