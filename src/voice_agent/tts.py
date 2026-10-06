@@ -16,7 +16,7 @@ class StreamingTTS:
     def __init__(self):
         self.client = ElevenLabs(
             api_key=tts_config.api_key
-        )
+        ) 
         self.is_playing = False
         self.stop_requested = False
 

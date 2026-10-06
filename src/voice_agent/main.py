@@ -45,6 +45,10 @@ class VoiceAgent:
         logger.info("Connected to ASR")
         
         
+        logger.info("Agent Greeting to user.")
+        await self.tts.speak("Maani Bro how are you, what are you up to ?")
+        
+        
         p = pyaudio.PyAudio()
         audio_stream = p.open(
             format=pyaudio.paInt16,
